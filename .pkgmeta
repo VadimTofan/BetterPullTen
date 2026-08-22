@@ -1,0 +1,7 @@
+package-as: BetterPullTen
+
+ignore:
+  - .github
+  - .gitignore
+  - .pkgmeta
+  - README.md

@@ -44,6 +44,24 @@ permissions.
 Better Pull Ten is under active development. Active pull timers display their
 remaining duration on the button and can be cancelled with a second press.
 
+## Releasing
+
+Tagged releases are packaged by GitHub Actions and published to CurseForge.
+The repository secret `CF_API_TOKEN` must contain a valid CurseForge API token.
+
+Before publishing, update `## Version` in `BetterPullTen.toc`, commit the
+change, and push it. Then create and push an annotated tag with the matching
+version:
+
+```powershell
+git tag -a v0.1.1 -m "Release v0.1.1"
+git push origin v0.1.1
+```
+
+The release workflow rejects tags that do not use `vX.Y.Z` format or do not
+match the TOC version. Successful builds are uploaded to CurseForge project
+`1509727` and attached to a GitHub Release.
+
 ## Support
 
 Report bugs or request features through

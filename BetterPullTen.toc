@@ -1,8 +1,9 @@
-## Interface: 120001
+## Interface: 120100
 ## Title: BetterPullTen
 ## Notes: Shows Ready Check and Pull Timer buttons.
 ## Author: Codex
 ## Version: 0.1.0
+## X-Curse-Project-ID: 1509727
 ## IconTexture: Interface\AddOns\BetterPullTen\Media\Icon.png
 ## SavedVariables: BetterPullTenDB
 
