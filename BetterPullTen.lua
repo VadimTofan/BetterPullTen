@@ -30,10 +30,13 @@ local MRT_CHAT_SECONDS = {
     [2] = true,
     [1] = true,
 }
+local SPAM_PROTECTION_SECONDS = 10
 
 local isPlayerInCombat = false
 local isMythicPlusActive = false
 local activePullTimer = nil
+local spamProtectionEndsAt = nil
+local displayedSpamProtectionSeconds = nil
 local pullTimerButton = nil
 
 local function normalizePullSeconds(value)
@@ -257,10 +260,41 @@ local function broadcastPullTimer(seconds)
     return true
 end
 
+local function getSpamProtectionSeconds()
+    if not spamProtectionEndsAt then
+        return nil
+    end
+
+    local seconds = math.ceil(spamProtectionEndsAt - GetTime())
+
+    if seconds > 0 then
+        return seconds
+    end
+
+    spamProtectionEndsAt = nil
+    return nil
+end
+
 local function updatePullButton(seconds)
     if not pullTimerButton then
         return
     end
+
+    local protectionSeconds = getSpamProtectionSeconds()
+
+    if protectionSeconds then
+        if protectionSeconds == displayedSpamProtectionSeconds then
+            return
+        end
+
+        displayedSpamProtectionSeconds = protectionSeconds
+        pullTimerButton.label:SetText(
+            "Spam lock (" .. protectionSeconds .. "s)"
+        )
+        return
+    end
+
+    displayedSpamProtectionSeconds = nil
 
     if seconds then
         pullTimerButton.label:SetText("Cancel (" .. seconds .. ")")
@@ -302,11 +336,27 @@ local function startTrackedPullTimer(seconds)
 end
 
 local function togglePullTimer(seconds)
-    if activePullTimer then
-        return cancelPullTimer()
+    local now = GetTime()
+
+    if getSpamProtectionSeconds() then
+        return false
     end
 
-    return startTrackedPullTimer(seconds)
+    local actionSucceeded
+    local wasCancel = activePullTimer ~= nil
+
+    if activePullTimer then
+        actionSucceeded = cancelPullTimer()
+    else
+        actionSucceeded = startTrackedPullTimer(seconds)
+    end
+
+    if actionSucceeded and wasCancel then
+        spamProtectionEndsAt = now + SPAM_PROTECTION_SECONDS
+        updatePullButton()
+    end
+
+    return actionSucceeded
 end
 
 local function updatePullTimer()
@@ -336,6 +386,28 @@ local function updatePullTimer()
     if MRT_CHAT_SECONDS[seconds] then
         sendPullChatMessage("Pull in " .. seconds .. " seconds")
     end
+end
+
+local function updateSpamProtection()
+    if not spamProtectionEndsAt then
+        return
+    end
+
+    local protectionSeconds = getSpamProtectionSeconds()
+
+    if protectionSeconds then
+        updatePullButton()
+        return
+    end
+
+    updatePullButton(
+        activePullTimer and activePullTimer.displayedSeconds
+    )
+end
+
+local function updateTimers()
+    updateSpamProtection()
+    updatePullTimer()
 end
 
 local function startPullTimer()
@@ -636,7 +708,7 @@ eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 eventFrame:RegisterEvent("CHALLENGE_MODE_START")
 eventFrame:RegisterEvent("CHALLENGE_MODE_COMPLETED")
 eventFrame:RegisterEvent("CHALLENGE_MODE_RESET")
-eventFrame:SetScript("OnUpdate", updatePullTimer)
+eventFrame:SetScript("OnUpdate", updateTimers)
 eventFrame:SetScript("OnEvent", function(_, event, loadedAddonName)
     if event == "PLAYER_REGEN_DISABLED" then
         isPlayerInCombat = true
