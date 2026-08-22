@@ -1,0 +1,8 @@
+## Interface: 120001
+## Title: BetterPullTen
+## Notes: Shows Ready Check and Pull Timer buttons.
+## Author: Codex
+## Version: 0.1.0
+## SavedVariables: BetterPullTenDB
+
+BetterPullTen.lua
