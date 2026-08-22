@@ -22,8 +22,19 @@ local colors = {
     muted = { 0.58, 0.63, 0.70, 1.00 },
 }
 
+local MRT_CHAT_SECONDS = {
+    [7] = true,
+    [5] = true,
+    [4] = true,
+    [3] = true,
+    [2] = true,
+    [1] = true,
+}
+
 local isPlayerInCombat = false
 local isMythicPlusActive = false
+local activePullTimer = nil
+local pullTimerButton = nil
 
 local function normalizePullSeconds(value)
     local seconds = tonumber(value)
@@ -163,25 +174,43 @@ local function getGroupChannel()
     return "PARTY"
 end
 
-local function startLocalBossModPullTimer(seconds)
-    local duration = tostring(seconds)
-
-    if SlashCmdList.pull then
-        SlashCmdList.pull(duration)
-    elseif SlashCmdList.BIGWIGSPULL then
-        SlashCmdList.BIGWIGSPULL(duration)
-    elseif SlashCmdList.DEADLYBOSSMODSPULL then
-        SlashCmdList.DEADLYBOSSMODSPULL(duration)
+local function canSendGroupMessages()
+    if not C_ChatInfo then
+        return false
     end
+
+    if C_ChatInfo.InChatMessagingLockdown then
+        return not C_ChatInfo.InChatMessagingLockdown()
+    end
+
+    return true
+end
+
+local function sendPullChatMessage(message)
+    if not canSendGroupMessages()
+        or not C_ChatInfo.SendChatMessage then
+        return false
+    end
+
+    local chatType = getGroupChannel()
+
+    if chatType == "RAID" then
+        chatType = "RAID_WARNING"
+    end
+
+    C_ChatInfo.SendChatMessage(message, chatType)
+    return true
 end
 
 local function broadcastPullTimer(seconds)
-    seconds = normalizePullSeconds(seconds)
+    seconds = tonumber(seconds)
 
-    if not seconds then
-        printMessage("Pull timer seconds must be a positive whole number.")
+    if not seconds or seconds < 0 then
+        printMessage("Pull timer seconds must be zero or a positive whole number.")
         return false
     end
+
+    seconds = math.floor(seconds)
 
     if not IsInGroup() then
         printMessage("You must be in a group to start a pull timer.")
@@ -198,19 +227,6 @@ local function broadcastPullTimer(seconds)
         return false
     end
 
-    if not C_ChatInfo or not C_ChatInfo.SendAddonMessage then
-        printMessage("Addon messaging is not available in this game version.")
-        return false
-    end
-
-    if C_ChatInfo.InChatMessagingLockdown
-        and C_ChatInfo.InChatMessagingLockdown() then
-        printMessage(
-            "Pull timers cannot be started during chat messaging lockdown."
-        )
-        return false
-    end
-
     local countdownStarted = C_PartyInfo.DoCountdown(seconds)
 
     if countdownStarted == false then
@@ -218,30 +234,112 @@ local function broadcastPullTimer(seconds)
         return false
     end
 
-    local channel = getGroupChannel()
-    local playerName = UnitName("player") or ""
-    local realmName = GetRealmName() or ""
-    local normalizedRealm = realmName:gsub("[%s-]+", "")
-    local playerPrefix = playerName .. "-" .. normalizedRealm .. "\t"
-    local _, _, _, _, _, _, _, mapID = GetInstanceInfo()
-    local dbmMessage = (playerPrefix .. "1\tPT\t%d\t%d"):format(
-        seconds,
-        mapID or 0
-    )
+    if canSendGroupMessages() and C_ChatInfo.SendAddonMessage then
+        local channel = getGroupChannel()
+        local playerName = UnitName("player") or ""
+        local realmName = GetRealmName() or ""
+        local normalizedRealm = realmName:gsub("[%s-]+", "")
+        local playerPrefix = playerName .. "-" .. normalizedRealm .. "\t"
+        local _, _, _, _, _, _, _, mapID = GetInstanceInfo()
+        local dbmMessage = (playerPrefix .. "1\tPT\t%d\t%d"):format(
+            seconds,
+            mapID or 0
+        )
 
-    startLocalBossModPullTimer(seconds)
-    C_ChatInfo.SendAddonMessage(
-        "BigWigs",
-        "P^Pull^" .. seconds,
-        channel
-    )
-    C_ChatInfo.SendAddonMessage("D5", dbmMessage, channel)
+        C_ChatInfo.SendAddonMessage(
+            "BigWigs",
+            "P^Pull^" .. seconds,
+            channel
+        )
+        C_ChatInfo.SendAddonMessage("D5", dbmMessage, channel)
+    end
 
     return true
 end
 
+local function updatePullButton(seconds)
+    if not pullTimerButton then
+        return
+    end
+
+    if seconds then
+        pullTimerButton.label:SetText("Cancel (" .. seconds .. ")")
+        return
+    end
+
+    pullTimerButton.label:SetText("Pull Timer")
+end
+
+local function resetPullTimer()
+    activePullTimer = nil
+    updatePullButton()
+end
+
+local function cancelPullTimer()
+    if not activePullTimer then
+        return false
+    end
+
+    resetPullTimer()
+    broadcastPullTimer(0)
+    sendPullChatMessage(">>> Pull timer cancelled <<<")
+    return true
+end
+
+local function startTrackedPullTimer(seconds)
+    if not broadcastPullTimer(seconds) then
+        return false
+    end
+
+    activePullTimer = {
+        endsAt = GetTime() + seconds,
+        displayedSeconds = seconds,
+    }
+
+    updatePullButton(seconds)
+    sendPullChatMessage("Pull in " .. seconds .. " seconds")
+    return true
+end
+
+local function togglePullTimer(seconds)
+    if activePullTimer then
+        return cancelPullTimer()
+    end
+
+    return startTrackedPullTimer(seconds)
+end
+
+local function updatePullTimer()
+    if not activePullTimer then
+        return
+    end
+
+    local seconds = math.max(
+        0,
+        math.ceil(activePullTimer.endsAt - GetTime())
+    )
+
+    if seconds == activePullTimer.displayedSeconds then
+        return
+    end
+
+    activePullTimer.displayedSeconds = seconds
+
+    if seconds == 0 then
+        resetPullTimer()
+        sendPullChatMessage(">>> PULL <<<")
+        return
+    end
+
+    updatePullButton(seconds)
+
+    if MRT_CHAT_SECONDS[seconds] then
+        sendPullChatMessage("Pull in " .. seconds .. " seconds")
+    end
+end
+
 local function startPullTimer()
-    return broadcastPullTimer(getPullSeconds())
+    return togglePullTimer(getPullSeconds())
 end
 
 local function stylePanel(frame, backgroundColor)
@@ -339,6 +437,7 @@ local function createMainFrame()
 
     local pullButton = createButton(frame, 108, 28, "Pull Timer", startPullTimer)
     pullButton:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -42)
+    pullTimerButton = pullButton
 
     local readyButton = createButton(frame, 108, 28, "Ready Check", startReadyCheck)
     readyButton:SetPoint("TOPLEFT", pullButton, "BOTTOMLEFT", 0, -8)
@@ -537,6 +636,7 @@ eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 eventFrame:RegisterEvent("CHALLENGE_MODE_START")
 eventFrame:RegisterEvent("CHALLENGE_MODE_COMPLETED")
 eventFrame:RegisterEvent("CHALLENGE_MODE_RESET")
+eventFrame:SetScript("OnUpdate", updatePullTimer)
 eventFrame:SetScript("OnEvent", function(_, event, loadedAddonName)
     if event == "PLAYER_REGEN_DISABLED" then
         isPlayerInCombat = true
@@ -623,7 +723,7 @@ eventFrame:SetScript("OnEvent", function(_, event, loadedAddonName)
                     return
                 end
 
-                broadcastPullTimer(pullSeconds)
+                togglePullTimer(pullSeconds)
                 return
             end
 

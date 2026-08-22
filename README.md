@@ -8,6 +8,7 @@ group-leader actions quick to access without opening menus or typing commands.
 
 - Movable Pull Timer and Ready Check buttons
 - Configurable pull-timer duration
+- MRT-style chat countdown messages and timer cancellation
 - Blizzard countdown support
 - MRT-compatible BigWigs and DBM pull-timer integration
 - Optional visibility rules for combat, Mythic+, and group leadership
@@ -40,8 +41,8 @@ permissions.
 
 ## Development Status
 
-Better Pull Ten is under active development. MRT-style chat countdown messages,
-an updating cancel button, and second-press timer cancellation are planned next.
+Better Pull Ten is under active development. Active pull timers display their
+remaining duration on the button and can be cancelled with a second press.
 
 ## Support
 
