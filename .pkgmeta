@@ -4,4 +4,8 @@ ignore:
   - .github
   - .gitignore
   - .pkgmeta
+  - CHANGELOG.md
+  - CURSEFORGE_DESCRIPTION.md
   - README.md
+  - docs
+  - tests
