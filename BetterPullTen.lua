@@ -39,6 +39,17 @@ local spamProtectionEndsAt = nil
 local displayedSpamProtectionSeconds = nil
 local pullTimerButton = nil
 
+local function isRetailClient()
+    return WOW_PROJECT_MAINLINE ~= nil
+        and WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
+end
+
+local function supportsMythicPlus()
+    return isRetailClient()
+        and C_ChallengeMode
+        and C_ChallengeMode.IsChallengeModeActive
+end
+
 local function normalizePullSeconds(value)
     local seconds = tonumber(value)
 
@@ -100,7 +111,7 @@ end
 local function refreshMythicPlusState()
     local active = false
 
-    if C_ChallengeMode and C_ChallengeMode.IsChallengeModeActive then
+    if supportsMythicPlus() then
         active = C_ChallengeMode.IsChallengeModeActive() and true or false
     end
 
@@ -152,6 +163,11 @@ local function applySettingsFrameVisibility(settingsFrame)
 end
 
 local function startReadyCheck()
+    if type(DoReadyCheck) ~= "function" then
+        printMessage("Ready checks are not available in this game version.")
+        return
+    end
+
     if not IsInGroup() then
         printMessage("You must be in a group to start a ready check.")
         return
@@ -570,7 +586,13 @@ end
 
 local function createSettingsFrame(mainFrame)
     local frame = CreateFrame("Frame", addonName .. "SettingsFrame", UIParent, "BackdropTemplate")
-    frame:SetSize(305, 359)
+
+    if supportsMythicPlus() then
+        frame:SetSize(305, 359)
+    else
+        frame:SetSize(305, 315)
+    end
+
     frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
     tinsert(UISpecialFrames, frame:GetName())
     frame:SetFrameStrata("DIALOG")
@@ -649,12 +671,22 @@ local function createSettingsFrame(mainFrame)
     end)
     leadOnlyButton:SetPoint("TOPLEFT", hideCombatButton, "BOTTOMLEFT", 0, -12)
 
-    local mythicPlusButton = createButton(frame, 260, 32, "", function()
-        BetterPullTenDB.hideInMythicPlus = not BetterPullTenDB.hideInMythicPlus
-        applyMainFrameVisibility(mainFrame)
-        frame:GetScript("OnShow")()
-    end)
-    mythicPlusButton:SetPoint("TOPLEFT", leadOnlyButton, "BOTTOMLEFT", 0, -12)
+    local mythicPlusButton
+
+    if supportsMythicPlus() then
+        mythicPlusButton = createButton(frame, 260, 32, "", function()
+            BetterPullTenDB.hideInMythicPlus = not BetterPullTenDB.hideInMythicPlus
+            applyMainFrameVisibility(mainFrame)
+            frame:GetScript("OnShow")()
+        end)
+        mythicPlusButton:SetPoint(
+            "TOPLEFT",
+            leadOnlyButton,
+            "BOTTOMLEFT",
+            0,
+            -12
+        )
+    end
 
     frame:SetScript("OnShow", function()
         secondsInput:SetText(getPullSeconds())
@@ -682,12 +714,14 @@ local function createSettingsFrame(mainFrame)
             leadOnlyButton.label:SetTextColor(unpack(colors.text))
         end
 
-        if BetterPullTenDB.hideInMythicPlus then
-            mythicPlusButton.label:SetText("Hide In Mythic+: On")
-            mythicPlusButton.label:SetTextColor(unpack(colors.accent))
-        else
-            mythicPlusButton.label:SetText("Hide In Mythic+: Off")
-            mythicPlusButton.label:SetTextColor(unpack(colors.text))
+        if mythicPlusButton then
+            if BetterPullTenDB.hideInMythicPlus then
+                mythicPlusButton.label:SetText("Hide In Mythic+: On")
+                mythicPlusButton.label:SetTextColor(unpack(colors.accent))
+            else
+                mythicPlusButton.label:SetText("Hide In Mythic+: Off")
+                mythicPlusButton.label:SetTextColor(unpack(colors.text))
+            end
         end
     end)
     frame:SetScript("OnHide", function(self)
@@ -700,14 +734,23 @@ local function createSettingsFrame(mainFrame)
 end
 
 local eventFrame = CreateFrame("Frame")
-eventFrame:RegisterEvent("ADDON_LOADED")
-eventFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
-eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
-eventFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
-eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
-eventFrame:RegisterEvent("CHALLENGE_MODE_START")
-eventFrame:RegisterEvent("CHALLENGE_MODE_COMPLETED")
-eventFrame:RegisterEvent("CHALLENGE_MODE_RESET")
+
+local function registerEventIfAvailable(frame, event)
+    return pcall(frame.RegisterEvent, frame, event)
+end
+
+registerEventIfAvailable(eventFrame, "ADDON_LOADED")
+registerEventIfAvailable(eventFrame, "PLAYER_REGEN_DISABLED")
+registerEventIfAvailable(eventFrame, "PLAYER_REGEN_ENABLED")
+registerEventIfAvailable(eventFrame, "GROUP_ROSTER_UPDATE")
+registerEventIfAvailable(eventFrame, "PLAYER_ENTERING_WORLD")
+
+if supportsMythicPlus() then
+    registerEventIfAvailable(eventFrame, "CHALLENGE_MODE_START")
+    registerEventIfAvailable(eventFrame, "CHALLENGE_MODE_COMPLETED")
+    registerEventIfAvailable(eventFrame, "CHALLENGE_MODE_RESET")
+end
+
 eventFrame:SetScript("OnUpdate", updateTimers)
 eventFrame:SetScript("OnEvent", function(_, event, loadedAddonName)
     if event == "PLAYER_REGEN_DISABLED" then

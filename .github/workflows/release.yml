@@ -27,21 +27,36 @@ jobs:
           set -euo pipefail
 
           tag_version="${GITHUB_REF_NAME#v}"
-          toc_version="$(sed -n 's/^## Version: //p' BetterPullTen.toc)"
 
           if [[ ! "$tag_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "Tag must use semantic version format vX.Y.Z."
             exit 1
           fi
 
-          if [[ "$tag_version" != "$toc_version" ]]; then
-            echo "Tag v$tag_version does not match TOC version $toc_version."
-            exit 1
-          fi
+          toc_files=(
+            BetterPullTen.toc
+            BetterPullTen_Mainline.toc
+            BetterPullTen_Vanilla.toc
+            BetterPullTen_BCC.toc
+            BetterPullTen_Mists.toc
+          )
+
+          for toc_file in "${toc_files[@]}"; do
+            if [[ ! -f "$toc_file" ]]; then
+              echo "Missing required addon file: $toc_file"
+              exit 1
+            fi
+
+            toc_version="$(sed -n 's/^## Version: //p' "$toc_file")"
+
+            if [[ "$tag_version" != "$toc_version" ]]; then
+              echo "Tag v$tag_version does not match $toc_file version $toc_version."
+              exit 1
+            fi
+          done
 
           for required_file in \
             BetterPullTen.lua \
-            BetterPullTen.toc \
             Media/Icon.png
           do
             if [[ ! -f "$required_file" ]]; then

@@ -17,10 +17,29 @@ group-leader actions quick to access without opening menus or typing commands.
 ## Installation
 
 1. Download or clone this repository.
-2. Place the `BetterPullTen` folder in:
-   `World of Warcraft/_retail_/Interface/AddOns/`
+2. Place the `BetterPullTen` folder in the appropriate client directory:
+   - Retail: `World of Warcraft/_retail_/Interface/AddOns/`
+   - Classic Era: `World of Warcraft/_classic_era_/Interface/AddOns/`
+   - Anniversary: `World of Warcraft/_anniversary_/Interface/AddOns/`
+   - MoP Classic: `World of Warcraft/_classic_/Interface/AddOns/`
+   - WoW Forever beta:
+     `World of Warcraft/_classic_beta_/Interface/AddOns/`
 3. Start World of Warcraft or run `/reload` if the game is already open.
 4. Enable Better Pull Ten from the character-selection AddOns menu.
+
+## Client Compatibility
+
+Better Pull Ten uses one shared implementation across all supported clients.
+Features that are not exposed by a client are omitted or report a clear message
+instead of stopping the addon from loading.
+
+- Mythic+ visibility is available only on Retail.
+- Ready Check requires the client to expose the ready-check API.
+- Pull Timer requires the built-in countdown API.
+- Boss-mod messages require the client's chat APIs to permit sending them.
+
+Blizzard increments addon interface versions over time. Interface versions must
+be updated when a future client patch marks the addon out of date.
 
 ## Usage
 
@@ -36,7 +55,7 @@ permissions.
 ## Project Structure
 
 - `BetterPullTen.lua` - addon behavior, interface, and settings
-- `BetterPullTen.toc` - World of Warcraft addon metadata and load order
+- `BetterPullTen*.toc` - client-specific addon metadata and load order
 - `docs/` - design and implementation notes
 
 ## Development Status
@@ -49,18 +68,19 @@ remaining duration on the button and can be cancelled with a second press.
 Tagged releases are packaged by GitHub Actions and published to CurseForge.
 The repository secret `CF_API_TOKEN` must contain a valid CurseForge API token.
 
-Before publishing, update `## Version` in `BetterPullTen.toc`, commit the
-change, and push it. Then create and push an annotated tag with the matching
-version:
+Before publishing, update `## Version` in every `BetterPullTen*.toc` manifest,
+commit the change, and push it. Then create and push an annotated tag with the
+matching version:
 
 ```powershell
-git tag -a v0.1.1 -m "Release v0.1.1"
-git push origin v0.1.1
+git tag -a v0.1.3 -m "Release v0.1.3"
+git push origin v0.1.3
 ```
 
 The release workflow rejects tags that do not use `vX.Y.Z` format or do not
-match the TOC version. Successful builds are uploaded to CurseForge project
-`1509727` and attached to a GitHub Release.
+match every TOC version. Successful builds are uploaded to CurseForge project
+`1509727` and attached to a GitHub Release. WoW Forever may require manual
+installation until addon platforms recognize it as a distinct client flavor.
 
 ## Support
 

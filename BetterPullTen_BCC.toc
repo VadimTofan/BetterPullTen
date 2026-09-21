@@ -1,4 +1,4 @@
-## Interface: 16001
+## Interface: 20506
 ## Title: BetterPullTen
 ## Notes: Shows Ready Check and Pull Timer buttons.
 ## Author: Codex
