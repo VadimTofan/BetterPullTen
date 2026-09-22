@@ -33,7 +33,7 @@ Better Pull Ten uses one shared implementation across all supported clients.
 Features that are not exposed by a client are omitted or report a clear message
 instead of stopping the addon from loading.
 
-- Mythic+ visibility is available only on Retail.
+- Mythic+ visibility is available only on Retail 12.1 and newer.
 - Ready Check requires the client to expose the ready-check API.
 - Pull Timer requires the built-in countdown API.
 - Boss-mod messages require the client's chat APIs to permit sending them.

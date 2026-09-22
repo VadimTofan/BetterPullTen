@@ -94,6 +94,17 @@ Describe 'BetterPullTen mythic plus visibility' {
         $source | Should Match 'C_ChallengeMode\.IsChallengeModeActive'
     }
 
+    It 'requires Retail 12.1 or higher before showing mythic plus settings' {
+        # Given older Retail and non-Retail clients can expose challenge mode APIs
+        # When support for the Mythic+ setting is evaluated
+        # Then the client interface must be Retail 12.1 or newer
+        $supportGate = 'local function supportsMythicPlus\(\)' +
+            '\s+return isRetailClient\(\)' +
+            '\s+and select\(4, GetBuildInfo\(\)\) >= 120100'
+
+        $source | Should Match $supportGate
+    }
+
     It 'registers optional events through a protected helper' {
         # Given client event sets differ
         # When events are registered

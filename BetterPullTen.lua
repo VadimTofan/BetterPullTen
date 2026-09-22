@@ -46,6 +46,7 @@ end
 
 local function supportsMythicPlus()
     return isRetailClient()
+        and select(4, GetBuildInfo()) >= 120100
         and C_ChallengeMode
         and C_ChallengeMode.IsChallengeModeActive
 end
